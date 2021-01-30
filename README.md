@@ -16,7 +16,9 @@ haskellApplication {
 }
 
 $ kahmi :run
-Hello, World!
+my-project:haskellApplication ...
+my-project:haskellApplicationRun ...
+Hello, world!
 ```
 
 ---
