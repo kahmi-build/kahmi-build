@@ -4,7 +4,7 @@ import typing as t
 import weakref
 from pathlib import Path
 
-from kahmi.dsl import Configurable, NameProvider, run_file
+from kahmi.dsl import StrictConfigurable, NameProvider, run_file
 from nr.functional import flatmap
 from overrides import overrides
 
@@ -15,7 +15,7 @@ from .plugin import apply_plugin
 T_Task = t.TypeVar('T_Task', bound=Task)
 
 
-class Project(Configurable, NameProvider):
+class Project(StrictConfigurable, NameProvider):
 
   DEFAULT_BUILD_DIRECTORY_NAME = '.build'
 

@@ -3,7 +3,7 @@ import abc
 import typing as t
 import weakref
 
-from kahmi.dsl import Configurable
+from kahmi.dsl import StrictConfigurable
 
 from .action import Action
 
@@ -13,7 +13,7 @@ if t.TYPE_CHECKING:
 T_Action = t.TypeVar('T_Action', bound=Action)
 
 
-class Task(Configurable):
+class Task(StrictConfigurable):
   """
   A task represents a single atomic piece of work for a build. Tasks are composed of actions.
   """
