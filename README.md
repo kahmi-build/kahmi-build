@@ -15,7 +15,7 @@ haskellApplication {
   srcs = ["Main.hs"]
 }
 
-$ kahmi :run
+$ kahmi run
 my-project:haskellApplication ...
 my-project:haskellApplicationRun ...
 Hello, world!
