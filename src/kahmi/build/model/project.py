@@ -6,6 +6,7 @@ from pathlib import Path
 
 from kahmi.dsl import Configurable, NameProvider, run_file
 from nr.functional import flatmap
+from overrides import overrides
 
 from .task import Task
 from .task_container import TaskContainer
@@ -118,7 +119,6 @@ class Project(Configurable, NameProvider):
       raise ValueError(f'extension {name!r} already registered to project {self.path!r}')
     self._extensions[name] = obj
 
-  # NameProvider
-
-  def lookup_name(self, name: str) -> t.Any:
+  @overrides
+  def _name_provider_lookup(self, name: str) -> t.Any:
     return self._extensions[name]

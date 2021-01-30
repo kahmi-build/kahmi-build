@@ -1,18 +1,26 @@
 
 import argparse
+import logging
 import os
 import typing as t
 
-from .executors.default import DefaultExecutor
+from .executors.default import DefaultExecutor, DefaultProgressPrinter
 from .model import BuildGraph, Project, Task
 
 parser = argparse.ArgumentParser()
+parser.add_argument('-v', '--verbose', action='count', default=0)
 parser.add_argument('-f', '--file', default='build.kmi', help='Build script. (default: %(default)s)')
 parser.add_argument('targets', nargs='*')
 
 
+def init_logging(verbosity: int) -> None:
+  level = {0: logging.WARNING, 1: logging.INFO, 2: logging.DEBUG}[min(verbosity, 2)]
+  logging.basicConfig(level=level, format='[%(asctime)s - %(levelname)s - %(name)s]: %(message)s')
+
+
 def main() -> None:
   args = parser.parse_args()
+  init_logging(args.verbose)
 
   project = Project.from_directory(None, os.path.dirname(args.file))
   project.run_build_script(args.file)
