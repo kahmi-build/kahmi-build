@@ -1,4 +1,4 @@
-# kahmi
+# kahmi-build
 
 Kahmi is a build system that is heavily inspired by Gradle implemented in Python. The main focus
 is on ease-of-use.
