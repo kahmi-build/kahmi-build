@@ -31,6 +31,7 @@ class Task(Configurable):
     self.default: bool = True
     self.public: bool = True
     self.exception: t.Optional[BaseException] = None
+    self.sync_io: bool = False  #: Stream the output of the task if possible, otherwhise print it after it's completed.
 
   def __repr__(self) -> str:
     return f'<Task {self.path!r} (type: {type(self).__name__})>'

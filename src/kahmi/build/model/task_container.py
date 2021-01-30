@@ -8,3 +8,6 @@ class TaskContainer(dict, t.MutableMapping[str, Task]):
   """
   A container for task objects.
   """
+
+  def __iter__(self) -> t.Iterator[Task]:
+    return self.values()

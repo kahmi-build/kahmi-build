@@ -23,7 +23,7 @@ class BuildGraph:
     Adds all default tasks of a project to the graph.
     """
 
-    for task in project.iter_tasks():
+    for task in project.iter_all_tasks():
       if task.default:
         self.add_task(task)
 
@@ -44,6 +44,10 @@ class BuildGraph:
     for finalizer in task.finalizers:
       self.add_task(finalizer)
       self._graph.add_edge(task, finalizer)
+
+  def add_tasks(self, tasks: t.Iterable[Task]) -> None:
+    for task in tasks:
+      self.add_task(task)
 
   def topological_order(self) -> t.Iterator[Task]:
     """

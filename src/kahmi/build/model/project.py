@@ -75,11 +75,10 @@ class Project(Configurable, NameProvider):
       if recursive:
         yield from child.iter_sub_projects(True)
 
-  def iter_tasks(self, recursive: bool = True) -> t.Iterator[Task]:
+  def iter_all_tasks(self) -> t.Iterator[Task]:
     yield from self.tasks.values()
-    if recursive:
-      for child_project in self.iter_sub_projects(True):
-        yield from child_project.tasks.values()
+    for child_project in self.iter_sub_projects(True):
+      yield from child_project.tasks.values()
 
   def all_projects(self, configure: t.Callable[['Project'], None]) -> None:
     configure(self)
