@@ -1,6 +1,23 @@
 # kahmi
 
-Kahmi is a Python-based build system with focus a focus on ease of use.
+Kahmi is a build system that is heavily inspired by Gradle implemented in Python. The main focus
+is on ease-of-use.
+
+## Quickstart (Haskell)
+
+```
+$ cat Main.hs
+main = putStrLn "Hello, world!"
+
+$ cat build.kmi
+apply("lang.haskell")
+haskellApplication {
+  srcs = ["Main.hs"]
+}
+
+$ kahmi :run
+Hello, World!
+```
 
 ---
 
