@@ -1,0 +1,7 @@
+
+apply("lang.ocaml")
+
+ocamlApplication {
+  srcs = ["Main.ml"]
+  standalone = True
+}

@@ -1,0 +1,13 @@
+name: kahmi-build
+version: 0.0.0
+author: Niklas Rosenstein <rosensteinniklas@gmail.com>
+modulename: kahmi.build
+description: Python build system inspired by Gradle.
+requirements:
+- python ^3.6
+- kahmi-dsl ~0.1.1
+- nr.functional ^0.1.0
+- overrides ^3.1.0
+entrypoints:
+  console_scripts:
+  - kahmi = kahmi.build.__main__:main
