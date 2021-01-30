@@ -20,11 +20,12 @@ class BuildGraph:
 
   def add_project(self, project: Project) -> None:
     """
-    Adds all tasks of a project.
+    Adds all default tasks of a project to the graph.
     """
 
     for task in project.iter_tasks():
-      self.add_task(task)
+      if task.default:
+        self.add_task(task)
 
   def add_task(self, task: Task) -> None:
     """
