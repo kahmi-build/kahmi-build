@@ -7,7 +7,6 @@ from pathlib import Path
 from kahmi.dsl import Configurable, NameProvider, run_file
 from nr.functional import flatmap
 
-from .configurable import Configurable
 from .task import Task
 from .task_container import TaskContainer
 from .plugin import apply_plugin

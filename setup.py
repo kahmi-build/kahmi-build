@@ -19,6 +19,7 @@ requirements = [
   'kahmi-dsl >=0.1.1,<0.2.0',
   'nr.functional >=0.1.0,<1.0.0',
   'overrides >=3.1.0,<4.0.0',
+  'networkx >=2.5.0,<3.0.0',
 ]
 
 setuptools.setup(

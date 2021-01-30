@@ -1,6 +1,6 @@
 
 from .action import Action
-from .configurable import Configurable
+from .build_graph import BuildGraph
 from .file_collection import FileCollection
 from .project import Project
 from .task import Task

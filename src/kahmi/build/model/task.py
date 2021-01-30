@@ -3,8 +3,9 @@ import abc
 import typing as t
 import weakref
 
+from kahmi.dsl import Configurable
+
 from .action import Action
-from .configurable import Configurable
 
 if t.TYPE_CHECKING:
   from .project import Project
@@ -22,7 +23,7 @@ class Task(Configurable):
     self._name = name
     self._actions: t.List[Action] = []
     self._dependencies: t.List[Task] = []
-    self._finalized_by: t.List[Task] = []
+    self._finalizers: t.List[Task] = []
     self.description: t.Optional[str] = None
     self.group: t.Optional[str] = None
     self.executed: bool = False
@@ -32,7 +33,7 @@ class Task(Configurable):
     self.exception: t.Optional[BaseException] = None
 
   def __repr__(self) -> str:
-    return f'<{type(self).__name__} path={self.path!r}>'
+    return f'<Task {self.path!r} (type: {type(self).__name__})>'
 
   @property
   def project(self) -> 'Project':
@@ -59,10 +60,10 @@ class Task(Configurable):
     return self._dependencies[:]
 
   @property
-  def finalized_by(self) -> t.List['Task']:
+  def finalizers(self) -> t.List['Task']:
     """ Returns a copy of the task's finalizer list. """
 
-    return self._finalized_by[:]
+    return self._finalizers[:]
 
   def execute(self) -> None:
     """
@@ -104,4 +105,4 @@ class Task(Configurable):
   def finalized_by(self, *tasks: 'Task') -> None:
     for task in tasks:
       assert isinstance(task, Task), "task must be a Task instance"
-      self._finalized_by.append(task)
+      self._finalizers.append(task)
