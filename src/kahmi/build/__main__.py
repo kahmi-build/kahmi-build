@@ -10,6 +10,7 @@ from .model import BuildGraph, Project, Task
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose', action='count', default=0)
+parser.add_argument('-s', '--no-capture', action='store_true')
 parser.add_argument('-f', '--file', default='build.kmi', help='Build script. (default: %(default)s)')
 parser.add_argument('targets', nargs='*')
 parser.add_argument('--py-profile', action='store_true')
@@ -42,7 +43,7 @@ def main_internal(args: argparse.Namespace) -> None:
   else:
     graph.add_project(project)
 
-  executor = DefaultExecutor(DefaultProgressPrinter(always_show_output=args.verbose >= 1))
+  executor = DefaultExecutor(DefaultProgressPrinter(always_show_output=args.no_capture or args.verbose >= 1))
   executor.execute_graph(graph)
 
 
