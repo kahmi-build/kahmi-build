@@ -9,6 +9,7 @@ requirements:
 - nr.functional ^0.1.0
 - overrides ^3.1.0
 - networkx ^2.5
+- pathos ^0.2.7
 entrypoints:
   console_scripts:
   - kahmi = kahmi.build.__main__:main

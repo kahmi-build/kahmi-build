@@ -20,6 +20,7 @@ requirements = [
   'nr.functional >=0.1.0,<1.0.0',
   'overrides >=3.1.0,<4.0.0',
   'networkx >=2.5.0,<3.0.0',
+  'pathos >=0.2.7,<1.0.0',
 ]
 
 setuptools.setup(
