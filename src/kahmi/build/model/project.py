@@ -5,6 +5,7 @@ import weakref
 from pathlib import Path
 
 from kahmi.dsl import StrictConfigurable, NameProvider, run_file
+from kahmi.dsl.macros import get_macro_plugin
 from nr.functional import flatmap
 from overrides import overrides
 
@@ -56,13 +57,17 @@ class Project(StrictConfigurable, NameProvider):
   def build_directory(self) -> Path:
     return self._directory.joinpath(self.DEFAULT_BUILD_DIRECTORY_NAME)
 
+  @property
+  def extensions(self) -> t.Dict[str, t.Any]:
+    return self._extensions
+
   @classmethod
   def from_directory(cls, parent: t.Optional['Project'], directory: str) -> 'Project':
     path = Path(directory).resolve()
     return Project(parent, path.name, path)
 
   def run_build_script(self, filename: str) -> None:
-    run_file(self, {}, filename)
+    run_file(self, {}, filename, macros={'yaml': get_macro_plugin('yaml')()})
 
   def add_child_project(self, project: 'Project') -> None:
     assert project.parent is self
