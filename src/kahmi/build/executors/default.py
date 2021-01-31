@@ -1,5 +1,4 @@
 
-#import textwrap
 import contextlib
 import logging
 import io
@@ -7,6 +6,7 @@ import os
 import select
 import sys
 import tempfile
+import textwrap
 import threading
 import typing as t
 
@@ -116,6 +116,7 @@ class DefaultProgressPrinter(ExecListener):
   def task_execute_end(self, task: Task, output: str) -> None:
     print()
     if self.always_show_output or task.sync_io or task.group == 'run' or task.exception:
+      output = textwrap.indent(output, '|  ')
       print(output.rstrip())
     """
     print('\r' + colored(task.id, 'cyan'), colored(status.name, STATUS_COLORS[status]))
