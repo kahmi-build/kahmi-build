@@ -25,6 +25,6 @@ class CommandAction(Action):
     env.update(self.environ or {})
 
     for command in self.commands:
-      subprocess.call(command, env=env, cwd=self.working_dir)
+      subprocess.check_call(command, env=env, cwd=self.working_dir)
 
     task.did_work = True
