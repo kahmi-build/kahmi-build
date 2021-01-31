@@ -24,7 +24,7 @@ class Project(StrictConfigurable, NameProvider):
     assert isinstance(directory, Path), "directory must be Path instance"
     self._parent = parent | flatmap(weakref.ref)
     self._name = name
-    self._directory = directory
+    self._directory = directory.resolve()
     self._children: t.Dict[str, Project] = {}
     self._extensions: t.Dict[str, t.Any] = {}
     self.tasks = TaskContainer()
