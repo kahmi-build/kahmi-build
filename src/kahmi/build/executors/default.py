@@ -148,21 +148,30 @@ class DefaultExecutor(Executor):
     self._listener = listener or DefaultProgressPrinter(False)
     self._process_pool = ProcessingPool(parallelism)
 
+  def _execute(self, task: Task) -> Task:
+    task.execute()
+    task.reraise_error()
+    return task
+
   def _run_single_task(self, task: Task) -> str:
     self.LOG.info('Running task `%s`', task.path)
 
     buffer = io.BytesIO()
-    new_task = stream_func_async(
-      self._process_pool,
-      lambda: (task.execute(), task)[1],
-      buffer.write)
-
-    # Inherit properties from the task's new status.
-    for key, value in vars(new_task).items():
-      if key.startswith('_'):
-        continue
-      if value != getattr(task, key):
-        setattr(task, key, value)
+    try:
+      new_task = stream_func_async(
+        self._process_pool,
+        lambda: self._execute(task),
+        buffer.write)
+    except BaseException as exc:
+      task.executed = True
+      task.exception = exc
+    else:
+      # Inherit properties from the task's new status.
+      for key, value in vars(new_task).items():
+        if key.startswith('_'):
+          continue
+        if value != getattr(task, key):
+          setattr(task, key, value)
 
     assert task.executed, task
     return buffer.getvalue().decode()
