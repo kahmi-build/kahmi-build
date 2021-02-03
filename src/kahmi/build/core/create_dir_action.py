@@ -2,7 +2,7 @@
 import os
 from dataclasses import dataclass
 
-from overrides import overrides
+from overrides import overrides  # type: ignore
 
 from kahmi.build.model import Action, Task
 

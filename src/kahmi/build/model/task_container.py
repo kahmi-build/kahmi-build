@@ -10,4 +10,4 @@ class TaskContainer(dict, t.MutableMapping[str, Task]):
   """
 
   def __iter__(self) -> t.Iterator[Task]:
-    return self.values()
+    return iter(self.values())

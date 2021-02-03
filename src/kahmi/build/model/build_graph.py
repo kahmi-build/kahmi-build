@@ -1,8 +1,8 @@
 
 import typing as t
 
-import networkx
-import networkx.algorithms.dag
+import networkx  # type: ignore
+import networkx.algorithms.dag  # type: ignore
 
 from .project import Project
 from .task import Task
@@ -37,7 +37,7 @@ class BuildGraph:
 
     self._graph.add_node(task)
 
-    for dependency in task.dependencies:
+    for dependency in task.compute_all_dependencies():
       self.add_task(dependency)
       self._graph.add_edge(dependency, task)
 

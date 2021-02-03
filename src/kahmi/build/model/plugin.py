@@ -7,9 +7,11 @@ if t.TYPE_CHECKING:
 
 
 def apply_plugin(plugin_name: str, project: 'Project') -> None:
+  module_name = 'kahmi.build.lib.' + plugin_name
   try:
-    module_name = 'kahmi.build.lib.' + plugin_name
     module = importlib.import_module(module_name)
-  except ImportError:
+  except ImportError as exc:
+    if module_name not in exc.msg.replace(exc.path, ''):
+      raise
     module = importlib.import_module(plugin_name)
-  module.apply(project)
+  module.apply(project)  # type: ignore

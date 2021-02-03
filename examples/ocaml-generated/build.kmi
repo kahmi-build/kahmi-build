@@ -1,0 +1,13 @@
+
+apply("lang.ocaml")
+apply("producer")
+
+task("generateOcaml", ProducerTask) {
+  output_file = f'{project.build_directory}/Main.ml'
+  content = 'print_endline "Hello, world!";\n'
+}
+
+ocamlApplication {
+  self.srcs.add(tasks['generateOcaml'].output_file)
+  standalone = True
+}

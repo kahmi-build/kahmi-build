@@ -10,11 +10,11 @@ import textwrap
 import threading
 import typing as t
 
-from overrides import overrides
+from overrides import overrides  # type: ignore
 from termcolor import colored
 
 from kahmi.build.model import BuildGraph, Task
-from pathos.multiprocessing import ProcessingPool
+from pathos.multiprocessing import ProcessingPool  # type: ignore
 from .base import Executor, ExecListener
 
 T = t.TypeVar('T')
@@ -42,7 +42,17 @@ def _safe_mkfifo(path: str, timeout: int, mode: int = 0o666) -> t.BinaryIO:
   def _worker():
     nonlocal exception
     try:
-      os.mkfifo(path)
+      while True:
+        try:
+          with open(path, 'rb'):
+            break
+        except FileNotFoundError:
+          pass
+
+      # NOTE (nrosenstein): (Tested only on Windows+WSL2+Debian) Actually using a FIFO appears
+      #   to break some subprocesses (like GHC) when the FIFO's fd is dup2'ed in
+      #   _stream_func_async_internal().
+      #os.mkfifo(path)
     except BaseException as exc:
       exception = exc
 
@@ -76,7 +86,7 @@ def _stream_func_async_internal(func: t.Callable[[], T], fifo_path: str) -> T:
 def stream_func_async(
   processing_pool: ProcessingPool,
   func: t.Callable[[], T],
-  on_output: t.Optional[t.Callable[[bytes], None]] = None,
+  on_output: t.Optional[t.Callable[[bytes], t.Any]] = None,
 ) -> T:
   """
   Submits a function to the specified *processing_pool* and captures it's stdout via a named pipe
@@ -86,8 +96,9 @@ def stream_func_async(
 
   with contextlib.ExitStack() as ctx:
     fifo_path = tempfile.mktemp(prefix='kahmi-fifo-')
-    ctx.push(lambda *a: (os.remove(fifo_path) if os.path.exists(fifo_path) else None, None)[1])
+    ctx.push(lambda *a: (os.remove(fifo_path) if os.path.exists(fifo_path) else None, None)[1])  # type: ignore
     result = processing_pool.apipe(_stream_func_async_internal, func, fifo_path)
+
     output = ctx.enter_context(_safe_mkfifo(fifo_path, timeout=5))
     os.set_blocking(output.fileno(), False)
     while not result.ready():
@@ -102,7 +113,7 @@ def stream_func_async(
       if on_output is not None:
         on_output(data)
 
-    return result.get()
+  return result.get()
 
 
 class DefaultProgressPrinter(ExecListener):
@@ -147,6 +158,7 @@ class DefaultExecutor(Executor):
 
     self._listener = listener or DefaultProgressPrinter(False)
     self._process_pool = ProcessingPool(parallelism)
+    self._sequential = parallelism == 1
 
   def _execute(self, task: Task) -> Task:
     task.execute()
@@ -155,6 +167,11 @@ class DefaultExecutor(Executor):
 
   def _run_single_task(self, task: Task) -> str:
     self.LOG.info('Running task `%s`', task.path)
+
+    if self._sequential:
+      # TODO: Capture stdout
+      task.execute()
+      return ''
 
     buffer = io.BytesIO()
     try:
@@ -184,7 +201,7 @@ class DefaultExecutor(Executor):
     # TODO: Parallelization
 
     if task.executed:
-      return task.exc_info is not None
+      return task.exception is not None
 
     for dep in task.dependencies:
       assert dep.executed, f'dependency {dep.path!r} of task {task.path!r} not executed'

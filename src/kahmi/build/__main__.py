@@ -3,6 +3,7 @@ import argparse
 import cProfile, pstats
 import logging
 import os
+import sys
 import typing as t
 
 from .executors.default import DefaultExecutor, DefaultProgressPrinter
@@ -12,6 +13,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose', action='count', default=0)
 parser.add_argument('-s', '--no-capture', action='store_true')
 parser.add_argument('-f', '--file', default='build.kmi', help='Build script. (default: %(default)s)')
+parser.add_argument('-j', '--jobs', type=int, help='Max number of parallel tasks to execute.')
 parser.add_argument('targets', nargs='*')
 parser.add_argument('--py-profile', action='store_true')
 
@@ -23,6 +25,9 @@ def init_logging(verbosity: int) -> None:
 
 def main_internal(args: argparse.Namespace) -> None:
   project = Project.from_directory(None, os.path.dirname(args.file))
+
+  sys.path.insert(0, str(project.directory))
+
   project.run_build_script(args.file)
 
   selected: t.List[Task] = []
@@ -43,12 +48,13 @@ def main_internal(args: argparse.Namespace) -> None:
   else:
     graph.add_project(project)
 
-  executor = DefaultExecutor(DefaultProgressPrinter(always_show_output=args.no_capture or args.verbose >= 1))
+  printer = DefaultProgressPrinter(always_show_output=args.no_capture or args.verbose >= 1)
+  executor = DefaultExecutor(printer, args.jobs)
   executor.execute_graph(graph)
 
 
-def main(args: t.Optional[t.Sequence[str]] = None) -> None:
-  args = parser.parse_args(args)
+def main(argv: t.Optional[t.Sequence[str]] = None) -> None:
+  args = parser.parse_args(argv)
   init_logging(args.verbose)
 
   if args.py_profile:

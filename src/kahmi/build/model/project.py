@@ -4,11 +4,12 @@ import typing as t
 import weakref
 from pathlib import Path
 
-from kahmi.dsl import StrictConfigurable, NameProvider, run_file
+from kahmi.dsl import NameProvider, run_file
 from kahmi.dsl.macros import get_macro_plugin
 from nr.functional import flatmap
-from overrides import overrides
+from overrides import overrides  # type: ignore
 
+from .configurable import StrictConfigurable
 from .task import Task
 from .task_container import TaskContainer
 from .plugin import apply_plugin
@@ -94,17 +95,17 @@ class Project(StrictConfigurable, NameProvider):
     for project in self.iter_sub_projects():
       configure(project)
 
-  def task(self, name: str, task_type: t.Type[T_Task] = Task) -> T_Task:
+  def task(self, name: str, task_type: t.Optional[t.Type[T_Task]] = None) -> T_Task:
     """
     Registers a new task with the specified *name* and of the *task_type* in the project and
     returns it.
     """
 
-    task = task_type(self, name)
+    task = (task_type or Task)(self, name)
     if name in self.tasks:
       raise ValueError(f'task name {task.path!r} already in use')
     self.tasks[name] = task
-    return task
+    return t.cast(T_Task, task)  # NOTE: mypy-workaround
 
   def apply(self, plugin_name: str) -> None:
     """
@@ -125,5 +126,5 @@ class Project(StrictConfigurable, NameProvider):
     self._extensions[name] = obj
 
   @overrides
-  def _name_provider_lookup(self, name: str) -> t.Any:
+  def _lookup_name(self, name: str) -> t.Any:
     return self._extensions[name]

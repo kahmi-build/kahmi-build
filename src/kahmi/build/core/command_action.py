@@ -4,7 +4,7 @@ import typing as t
 import subprocess
 from dataclasses import dataclass, field
 
-from overrides import overrides
+from overrides import overrides  # type: ignore
 
 from kahmi.build.model import Action, Task
 
@@ -17,7 +17,7 @@ class CommandAction(Action):
 
   commands: t.List[t.List[str]] = field(default_factory=list)
   working_dir: t.Optional[str] = None
-  environ: t.Optional[t.Dict[str, str]] = field(default_factory=dict)
+  environ: t.Dict[str, str] = field(default_factory=dict)
 
   @overrides
   def execute(self, task: Task) -> None:

@@ -1,10 +1,8 @@
 
-import os
 import typing as t
-import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from overrides import overrides
+from overrides import overrides  # type: ignore
 
 from kahmi.build.model import Action, Task
 
@@ -19,5 +17,5 @@ class LambdaAction(Action):
 
   @overrides
   def execute(self, task: Task) -> None:
-    self.func(task)
+    self.func(task)  # type: ignore
     task.did_work = True

@@ -2,7 +2,7 @@
 import abc
 import typing as t
 
-from kahmi.dsl import StrictConfigurable
+from .configurable import StrictConfigurable
 
 if t.TYPE_CHECKING:
   from .task import Task
