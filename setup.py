@@ -21,6 +21,8 @@ requirements = [
   'overrides >=3.1.0,<4.0.0',
   'networkx >=2.5.0,<3.0.0',
   'pathos >=0.2.7,<1.0.0',
+  'termcolor >=1.1.0,<2.0.0',
+  'PyYAML >=5.4.1,<6.0.0',
 ]
 
 setuptools.setup(
