@@ -34,10 +34,6 @@ if not hasattr(os, 'mkfifo'):
 #}
 
 
-def _is_wsl() -> bool:
-  return os.name == 'posix' and 'Microsoft' in platform.uname().release
-
-
 class FifoMaker:
 
   def __init__(self, path: str, timeout: int, mode: int = 0o666) -> None:
@@ -50,27 +46,16 @@ class FifoMaker:
 
   def _open_fifo_worker(self, fifo_opened: threading.Event) -> None:
     try:
-      if _is_wsl():
-        # NOTE (nrosenstein): Actually using a FIFO appears to break the GHC process (Haskell
-        # compiler) when the FIFO's fd is dup2'ed in _stream_func_async_internal().
-        while True:
-          try:
-            # TODO (nrosenstein): FIFO mode?
-            with open(self._path, 'rb'):
-              break
-          except FileNotFoundError:
-            pass
-      else:
-        fifo_opened.set()
-        # NOTE (nrosenstein): Herein lies the period of time in which the FIFO creation can still
-        #   go wrong.
-        try:
-          os.mkfifo(self._path, mode=self._mode)
-        except FileExistsError as exc:
-          LOG.exception('Was unable to open fifo %r because file exists. This hints at a race '
-            'condition where the child process was able to open the path for writing before '
-            'mkfifo() was called.', self._path)
-          raise
+      fifo_opened.set()
+      # NOTE (nrosenstein): Herein lies the period of time in which the FIFO creation can still
+      #   go wrong.
+      try:
+        os.mkfifo(self._path, mode=self._mode)
+      except FileExistsError as exc:
+        LOG.exception('Was unable to open fifo %r because file exists. This hints at a race '
+          'condition where the child process was able to open the path for writing before '
+          'mkfifo() was called.', self._path)
+        raise
     except BaseException as exc:
       self._exception = exc
     finally:
