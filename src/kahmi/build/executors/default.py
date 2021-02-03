@@ -3,11 +3,13 @@ import contextlib
 import logging
 import io
 import os
+import platform
 import select
 import sys
 import tempfile
 import textwrap
 import threading
+import time
 import typing as t
 
 from overrides import overrides  # type: ignore
@@ -17,6 +19,7 @@ from kahmi.build.model import BuildGraph, Task
 from pathos.multiprocessing import ProcessingPool  # type: ignore
 from .base import Executor, ExecListener
 
+LOG = logging.getLogger(__name__)
 T = t.TypeVar('T')
 
 if not hasattr(os, 'mkfifo'):
@@ -31,46 +34,100 @@ if not hasattr(os, 'mkfifo'):
 #}
 
 
-def _safe_mkfifo(path: str, timeout: int, mode: int = 0o666) -> t.BinaryIO:
-  """
-  Creates a fifo and waits at max *timeout* seconds before cancelling the operation and raising
-  a #RuntimeError instead. Returns the readable end of the fifo on success.
-  """
+def _is_wsl() -> bool:
+  return os.name == 'posix' and 'Microsoft' in platform.uname().release
 
-  exception: t.Optional[BaseException] = None
 
-  def _worker():
-    nonlocal exception
+class FifoMaker:
+
+  def __init__(self, path: str, timeout: int, mode: int = 0o666) -> None:
+    self._path = path
+    self._timeout = timeout
+    self._mode = mode
+    self._tstart: t.Optional[int] = None
+    self._thread: t.Optional[threading.Thread] = None
+    self._exception: t.Optional[BaseException] = None
+
+  def _open_fifo_worker(self, fifo_opened: threading.Event) -> None:
     try:
-      while True:
+      if _is_wsl():
+        # NOTE (nrosenstein): Actually using a FIFO appears to break the GHC process (Haskell
+        # compiler) when the FIFO's fd is dup2'ed in _stream_func_async_internal().
+        while True:
+          try:
+            # TODO (nrosenstein): FIFO mode?
+            with open(self._path, 'rb'):
+              break
+          except FileNotFoundError:
+            pass
+      else:
+        fifo_opened.set()
+        # NOTE (nrosenstein): Herein lies the period of time in which the FIFO creation can still
+        #   go wrong.
         try:
-          with open(path, 'rb'):
-            break
-        except FileNotFoundError:
-          pass
-
-      # NOTE (nrosenstein): (Tested only on Windows+WSL2+Debian) Actually using a FIFO appears
-      #   to break some subprocesses (like GHC) when the FIFO's fd is dup2'ed in
-      #   _stream_func_async_internal().
-      #os.mkfifo(path)
+          os.mkfifo(self._path, mode=self._mode)
+        except FileExistsError as exc:
+          LOG.exception('Was unable to open fifo %r because file exists. This hints at a race '
+            'condition where the child process was able to open the path for writing before '
+            'mkfifo() was called.', self._path)
+          raise
     except BaseException as exc:
-      exception = exc
+      self._exception = exc
+    finally:
+      fifo_opened.set()
 
-  thread = threading.Thread(target=_worker)
-  thread.start()
-  thread.join(timeout=timeout)
+  def __enter__(self) -> 'FifoMaker':
+    return self
 
-  if thread.is_alive():
-    with open(path, 'wb'):
+  def __exit__(self, *a) -> None:
+    self.remove()
+
+  def create(self) -> 'FifoMaker':
+    """
+    Create the FIFO and return. This blocks until the #os.mkfifo() call was made.
+    """
+
+    if self._thread is not None:
+      raise RuntimeError('cannot create the FIFO twice')
+
+    fifo_opened = threading.Event()
+    self._thread = threading.Thread(target=self._open_fifo_worker, args=(fifo_opened,))
+    self._thread.start()
+    self._tstart = time.perf_counter()
+    # Wait for the FIFO to open, then return to the caller.
+    fifo_opened.wait(timeout=self._timeout)
+    return self
+
+  def open_read(self) -> t.BinaryIO:
+    """
+    Open the FIFO for reading. This blocks until the FIFO was connected to by another process
+    or the timeout since calling #create() is exceeded.
+    """
+
+    if self._thread is None:
+      raise RuntimeError('call create() before open_read()')
+    assert self._tstart is not None
+
+    # Wait for the FIFO to be connected, then return to the caller. If we exceed the timeout,
+    # then we assume the FIFO did not connect and abort the process.
+    self._thread.join(timeout=self._timeout - (time.perf_counter() - self._tstart))
+    if self._thread.is_alive():
+      with open(self._path, 'wb'):
+        pass
+      self.remove()
+      self._thread.join()
+      raise RuntimeError(f'opening fifo {self._path!r} timed out after {self._timeout} seconds')
+
+    if self._exception is not None:
+      raise self._exception
+
+    return open(self._path, 'rb')
+
+  def remove(self) -> None:
+    try:
+      os.remove(self._path)
+    except FileNotFoundError:
       pass
-    os.remove(path)
-    thread.join()
-    raise RuntimeError(f'opening fifo {path!r} timed out after {timeout} seconds')
-
-  if exception is not None:
-    raise exception
-
-  return open(path, 'rb')
 
 
 def _stream_func_async_internal(func: t.Callable[[], T], fifo_path: str) -> T:
@@ -96,10 +153,10 @@ def stream_func_async(
 
   with contextlib.ExitStack() as ctx:
     fifo_path = tempfile.mktemp(prefix='kahmi-fifo-')
-    ctx.push(lambda *a: (os.remove(fifo_path) if os.path.exists(fifo_path) else None, None)[1])  # type: ignore
+    fifo = ctx.enter_context(FifoMaker(fifo_path, timeout=5))
+    fifo.create()
     result = processing_pool.apipe(_stream_func_async_internal, func, fifo_path)
-
-    output = ctx.enter_context(_safe_mkfifo(fifo_path, timeout=5))
+    output = ctx.enter_context(fifo.open_read())
     os.set_blocking(output.fileno(), False)
     while not result.ready():
       # We use select() to limit busy polling activity for long-running tasks.
@@ -112,8 +169,7 @@ def stream_func_async(
         break
       if on_output is not None:
         on_output(data)
-
-  return result.get()
+    return result.get()
 
 
 class DefaultProgressPrinter(ExecListener):
