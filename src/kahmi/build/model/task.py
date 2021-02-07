@@ -133,6 +133,14 @@ class Task(StrictConfigurable, HavingProperties):
     return self.project.path + ':' + self._name
 
   @property
+  def group_path(self) -> t.Optional[str]:
+    if not self.group:
+      return None
+    if self._cached_path:
+      return self._cached_path.rpartition(':')[0] + ':' + self.group
+    return self.project.path + ':' + self.group
+
+  @property
   def actions(self) -> t.List[Action]:
     """ Returns a copy of the task's action list. """
 
@@ -168,7 +176,7 @@ class Task(StrictConfigurable, HavingProperties):
   def before_execute(self) -> None:
     # TODO(nrosenstein): When to use skipped? Should we delegate to actions?
     inputs = self.get_task_inputs()
-    if not inputs.files:
+    if not inputs.files and not inputs.values:
       self.dirty = True
     else:
       self.dirty = self.project.env.state_tracker.task_inputs_changed(self, inputs)

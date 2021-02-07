@@ -1,5 +1,5 @@
 
-import os
+import sys
 import typing as t
 import weakref
 from pathlib import Path
@@ -32,7 +32,7 @@ class Project(StrictConfigurable, NameProvider):
     self._parent = parent | flatmap(weakref.ref)
     self._name = name
     self._directory = directory.resolve()
-    self._children: t.Dict[str, Project] = {}
+    self._children: t.List[Project] = []
     self._extensions: t.Dict[str, t.Any] = {}
     self.tasks = TaskContainer()
 
@@ -84,16 +84,15 @@ class Project(StrictConfigurable, NameProvider):
     return Project(env, parent, path.name, path)
 
   def run_build_script(self, filename: str) -> None:
-    run_file(self, {}, filename, macros={'yaml': get_macro_plugin('yaml')()})
-
-  def add_child_project(self, project: 'Project') -> None:
-    assert project.parent is self
-    if project.name in self._children:
-      raise ValueError(f'project name {project.path!r} is already in use')
-    self._children[project.name] = project
+    path = str(self.directory)
+    sys.path.append(path)
+    try:
+      run_file(self, {}, filename, macros={'yaml': get_macro_plugin('yaml')()})
+    finally:
+      sys.path.remove(path)
 
   def iter_sub_projects(self, recursive: bool = True) -> t.Iterator['Project']:
-    for child in self._children.values():
+    for child in self._children:
       yield child
       if recursive:
         yield from child.iter_sub_projects(True)
@@ -110,6 +109,16 @@ class Project(StrictConfigurable, NameProvider):
   def sub_projects(self, configure: t.Callable[['Project'], None]) -> None:
     for project in self.iter_sub_projects():
       configure(project)
+
+  def include(self, path: str) -> 'Project':
+    """
+    Include the project at the specified *path* as a subproject.
+    """
+
+    sub = self.from_directory(self.env, self, str(self.directory.joinpath(path)))
+    self._children.append(sub)
+    sub.run_build_script(str(sub.directory.joinpath('build.kmi')))
+    return sub
 
   def task(self, name: str, task_type: t.Optional[t.Type[T_Task]] = None) -> T_Task:
     """
@@ -156,23 +165,48 @@ class Project(StrictConfigurable, NameProvider):
       matches = False
       for arg in selectors:
         if arg.startswith(':'):
-          full_arg = self.name + arg
-          if task.path == full_arg:
+          if task.path.endswith(arg):
+            parent = task.path[:-len(arg)]
+          elif task.group and task.group_path.endswith(arg):
+            parent = task.group_path[:-len(arg)]
+          else:
+            parent = None
+          if parent and parent.count(':') == 0:  # Must be specified relative to the root project
             matches = True
             break
-        if (arg == task.path) or (task.group and arg == (':' + task.group)):
+        if arg == task.path or arg == task.group:
           matches = True
           break
 
       if matches:
         selected.append(task)
         unmatched.discard(arg)
-        break
 
     if unmatched:
       raise ValueError('unmatched selectors: ' + ', '.join(unmatched))
 
     return selected
+
+  def files(self, paths: t.List[str]) -> t.List[str]:
+    """
+    Normalizes the specified list of paths and expands them as glob patterns.
+    """
+
+    import glob
+
+    def _glob(path: str) -> t.Iterator[str]:
+      path = str(self.directory.joinpath(path))
+      if '*' in path or '?' in path:
+        yield from glob.glob(path)
+      else:
+        yield path
+
+    result: t.List[str] = []
+    for path in paths:
+      result.extend(_glob(path))
+    return result
+
+  # NameProvider
 
   @overrides
   def _lookup_name(self, name: str) -> t.Any:
