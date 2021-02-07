@@ -11,7 +11,10 @@ def apply_plugin(plugin_name: str, project: 'Project') -> None:
   try:
     module = importlib.import_module(module_name)
   except ImportError as exc:
-    if module_name not in exc.msg.replace(exc.path, ''):
+    exc_msg = exc.msg
+    if exc.path:
+      exc_msg = exc_msg.replace(exc.path, '')
+    if module_name not in exc_msg:
       raise
     module = importlib.import_module(plugin_name)
   module.apply(project)  # type: ignore
