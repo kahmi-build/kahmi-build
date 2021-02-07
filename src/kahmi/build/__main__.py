@@ -28,7 +28,6 @@ def main_internal(args: argparse.Namespace) -> None:
   env.root_project = Project.from_directory(env, None, os.path.dirname(args.file))
   env.state_tracker = SqliteStateTracker(os.path.join(
     env.root_project.build_directory, '.kahmi', 'build_state.db'))
-  sys.path.insert(0, str(env.root_project.directory))
   env.root_project.run_build_script(args.file)
   env.graph.add_project(env.root_project)
 

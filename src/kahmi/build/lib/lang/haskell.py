@@ -30,7 +30,7 @@ class HaskellApplication(Task):
     closure(self)
 
     output_file = self.output_file.finalize()
-    srcs = self.srcs.finalize()
+    srcs = self.project.files(self.srcs.finalize())
     command = ['ghc', '-o', output_file] + srcs + self.compiler_flags.finalize()
     self.performs(CreateDirAction(os.path.dirname(output_file)))
     self.performs(CommandAction([command]))

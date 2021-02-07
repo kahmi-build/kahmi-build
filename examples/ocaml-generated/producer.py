@@ -1,14 +1,14 @@
 
 
+from kahmi.build.core import LambdaAction
 from kahmi.build.model import Project, Property, Task
 
 
 class ProducerTask(Task):
   output_file: Property[str] = Property(None, Task.Output)
-  content: Property[str]
+  content: Property[str] = Property(None, Task.Input)
 
   def configure(self, closure):
-    from kahmi.build.core import LambdaAction
     closure(self)
     self.performs(LambdaAction(lambda _: self.write_file()))
 

@@ -43,7 +43,7 @@ class OcamlApplication(Task):
 
     self.output_file.finalize()
     command = ['ocamlopt' if self.standalone.get() else 'ocamlc']
-    command += ['-o'] + [self.output_file.get()] + self.srcs.get()
+    command += ['-o'] + [self.output_file.get()] + self.project.files(self.srcs.get())
 
     self.performs(CreateDirAction(os.path.dirname(self.output_file.get())))
     self.performs(CommandAction([command]))
