@@ -45,6 +45,9 @@ class HaskellApplication(Task):
     run_task.depends_on(self)
     run_task.performs(CommandAction([[output_file]]))
 
+  def execute(self):
+    super().execute()
+
 
 def apply(project: Project) -> None:
   project.register_extension('HaskellApplication', HaskellApplication)

@@ -13,6 +13,10 @@ from .configurable import StrictConfigurable
 from .task import Task
 from .task_container import TaskContainer
 from .plugin import apply_plugin
+from ..util.preconditions import check_not_none
+
+if t.TYPE_CHECKING:
+  from .environment import Environment
 
 T_Task = t.TypeVar('T_Task', bound=Task)
 
@@ -21,9 +25,10 @@ class Project(StrictConfigurable, NameProvider):
 
   DEFAULT_BUILD_DIRECTORY_NAME = '.build'
 
-  def __init__(self, parent: t.Optional['Project'], name: str, directory: Path) -> None:
+  def __init__(self, env: 'Environment', parent: t.Optional['Project'], name: str, directory: Path) -> None:
     assert name, "project name cannot be empty"
     assert isinstance(directory, Path), "directory must be Path instance"
+    self._env = weakref.ref(env)
     self._parent = parent | flatmap(weakref.ref)
     self._name = name
     self._directory = directory.resolve()
@@ -32,12 +37,23 @@ class Project(StrictConfigurable, NameProvider):
     self.tasks = TaskContainer()
 
   @property
+  def env(self) -> 'Environment':
+    return check_not_none(self._env(), 'lost reference to Environment')
+
+  @property
   def project(self) -> 'Project':
     return self
 
   @property
   def parent(self) -> t.Optional['Project']:
     return self._parent | flatmap(lambda x: x())
+
+  @property
+  def root(self) -> 'Project':
+    project = self
+    while project.parent:
+      project = project.parent
+    return project
 
   @property
   def name(self) -> str:
@@ -63,9 +79,9 @@ class Project(StrictConfigurable, NameProvider):
     return self._extensions
 
   @classmethod
-  def from_directory(cls, parent: t.Optional['Project'], directory: str) -> 'Project':
+  def from_directory(cls, env: 'Environment', parent: t.Optional['Project'], directory: str) -> 'Project':
     path = Path(directory).resolve()
-    return Project(parent, path.name, path)
+    return Project(env, parent, path.name, path)
 
   def run_build_script(self, filename: str) -> None:
     run_file(self, {}, filename, macros={'yaml': get_macro_plugin('yaml')()})
@@ -125,6 +141,53 @@ class Project(StrictConfigurable, NameProvider):
       raise ValueError(f'extension {name!r} already registered to project {self.path!r}')
     self._extensions[name] = obj
 
+  def resolve_tasks(self, selectors: t.List[str]) -> t.Iterator[Task]:
+    """
+    Given a list of task selectors, returns a list of the matched tasks. If at least one selector
+    does not match one task, a #ValueError is raised.
+    """
+
+    selected: t.List[Task] = []
+    unmatched: t.Set[str] = set(selectors)
+
+    root = self.root
+
+    for task in root.iter_all_tasks():
+      matches = False
+      for arg in selectors:
+        if arg.startswith(':'):
+          full_arg = self.name + arg
+          if task.path == full_arg:
+            matches = True
+            break
+        if (arg == task.path) or (task.group and arg == (':' + task.group)):
+          matches = True
+          break
+
+      if matches:
+        selected.append(task)
+        unmatched.discard(arg)
+        break
+
+    if unmatched:
+      raise ValueError('unmatched selectors: ' + ', '.join(unmatched))
+
+    return selected
+
   @overrides
   def _lookup_name(self, name: str) -> t.Any:
     return self._extensions[name]
+
+
+class ProjectGraphHelper:
+
+  def __init__(self, project: Project) -> None:
+    self._project = weakref.ref(project)
+
+  def is_selected(self, task_name: t.Union[str, t.List[str]]) -> bool:
+    """
+    Returns True if any of the specified tasks are selected in the build graph. Note that
+    the selection data is only available
+    """
+
+

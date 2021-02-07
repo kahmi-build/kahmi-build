@@ -116,10 +116,11 @@ def test_having_properties_constructor():
 def test_collect_properties():
   p1 = Property[int](3, name='p1')
   p2 = p1.map(lambda v: v + 2)
-  p3 = Property[int](name='empty').coalesce(p2).flatmap(lambda v: Property[int](v + 10, name='p3'))
+  p3 = Property[int](10, name='p3')
+  p4 = Property[int](name='empty').coalesce(p2).flatmap(lambda v: Property(p3.get() + v))
 
-  assert p3.get() == 15
-  assert [x.name for x in collect_properties(p3)] == ['empty', 'p1', 'p3']
+  assert p4.get() == 15
+  assert [x.name for x in collect_properties(p4)] == ['empty', 'p1', 'p3']
 
 
 def test_property_instantiation_inherits_markers():

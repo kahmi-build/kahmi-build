@@ -3,7 +3,6 @@ import contextlib
 import logging
 import io
 import os
-import platform
 import select
 import sys
 import tempfile
@@ -15,7 +14,7 @@ import typing as t
 from overrides import overrides  # type: ignore
 from termcolor import colored
 
-from kahmi.build.model import BuildGraph, Task
+from kahmi.build.model import BuildGraph, Task, TaskStatus
 from pathos.multiprocessing import ProcessingPool  # type: ignore
 from .base import Executor, ExecListener
 
@@ -98,7 +97,7 @@ class FifoMaker:
     self._thread.join(timeout=self._timeout - (time.perf_counter() - self._tstart))
     if self._thread.is_alive():
       with open(self._path, 'wb'):
-        pass
+        pass  # noqa
       self.remove()
       self._thread.join()
       raise RuntimeError(f'opening fifo {self._path!r} timed out after {self._timeout} seconds')
@@ -225,9 +224,8 @@ class DefaultExecutor(Executor):
       task.exception = exc
     else:
       # Inherit properties from the task's new status.
-      for key, value in vars(new_task).items():
-        if key.startswith('_'):
-          continue
+      for key in ['executed', 'did_work', 'exception']:
+        value = getattr(new_task, key)
         if value != getattr(task, key):
           setattr(task, key, value)
 
@@ -239,25 +237,29 @@ class DefaultExecutor(Executor):
     Runs the inputs of *task* and then the task itself.
     """
 
-    # TODO: Parallelization
-
     if task.executed:
       return task.exception is not None
 
     for dep in task.dependencies:
-      assert dep.executed, f'dependency {dep.path!r} of task {task.path!r} not executed'
+      assert dep.status in TaskStatus.COMPLETED, f'dependency {dep.path!r} of task '\
+        f'{task.path!r} is not complete (has status {dep.status.name})'
 
+    task.before_execute()
+    if task.status in (TaskStatus.UPTODATE, TaskStatus.SKIPPED):
+      return True
+
+    assert task.status == TaskStatus.PENDING, task
     self._listener.task_execute_begin(task)
     output = self._run_single_task(task)
     self._listener.task_execute_end(task, output)
-
-    # TODO: Call task cleanups
-
+    task.after_execute()
+    # TODO(nrosenstein): Ensure task finalizers are called.
     return True
 
   @overrides
   def execute_graph(self, graph: BuildGraph) -> None:
+    # TODO:(nrosenstein) Parallelization
     with self._process_pool:
-      for task in graph.topological_order():
+      for task in graph.tasks_in_order():
         self.run(task)
         task.reraise_error()

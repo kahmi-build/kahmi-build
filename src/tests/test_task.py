@@ -1,13 +1,15 @@
 
 from pathlib import Path
 
-from kahmi.build.model.task import Task
+from kahmi.build.model.environment import Environment
 from kahmi.build.model.project import Project
 from kahmi.build.model.property import Property
+from kahmi.build.model.task import Task
 
 
 def test_task_dependencies_through_properties():
-  project = Project(None, 'test', Path.cwd())
+  env = Environment()
+  project = Project(env, None, 'test', Path.cwd())
 
   class ProducerTask(Task):
     output_file: Property[str] = Property(None, Task.Output)

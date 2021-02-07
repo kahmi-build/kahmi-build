@@ -79,7 +79,7 @@ class MappedProvider(Provider[R]):
     if visitor(self):
       self._sub.visit(visitor)
       # Check if the closure captures any properies.
-      for cell in self._func.__closure__:
+      for cell in (self._func.__closure__ or []):
         if isinstance(cell.cell_contents, Property):
           cell.cell_contents.visit(visitor)
 
@@ -109,7 +109,7 @@ class FlatMappedProvider(Provider[R]):
     if visitor(self):
       self._sub.visit(visitor)
       # Check if the closure captures any properies.
-      for cell in self._func.__closure__:
+      for cell in (self._func.__closure__ or []):
         if isinstance(cell.cell_contents, Property):
           cell.cell_contents.visit(visitor)
 
@@ -314,7 +314,7 @@ class ListProperty(Property[t.List[T]]):
     name: t.Optional[str] = None,
     origin: t.Optional[t.Callable[[], 'HavingProperties']] = None,
   ) -> None:
-    super().__init__(value or [], markers, name, origin)
+    super().__init__(value or [], *markers, name=name, origin=origin)
 
   @overrides
   def visit(self, visitor: t.Callable[['Provider'], bool]) -> None:
